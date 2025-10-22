@@ -1,0 +1,495 @@
+package dfa.ui;
+
+import dfa.model.DFA;
+import dfa.model.DFASimulation;
+import dfa.parser.DFAParser;
+
+import javax.swing.*;
+import javax.swing.border.EmptyBorder;
+import javax.swing.table.TableRowSorter;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.io.File;
+import java.io.IOException;
+import java.util.*;
+import java.awt.event.ActionListener;
+
+public class MainFrame extends JFrame {
+    // Cards
+    private final CardLayout cardLayout = new CardLayout();
+    private final JPanel root = new JPanel(cardLayout);
+    private final JPanel homePanel = new JPanel(new GridBagLayout());
+    private final JPanel simulatorPanel = new JPanel(new BorderLayout());
+
+    // Simulator components
+    private final TransitionTableModel transitionTableModel = new TransitionTableModel();
+    private final JTable transitionTable = new JTable(transitionTableModel);
+    private final DiagramPanel diagramPanel = new DiagramPanel();
+    private final StringsTableModel stringsTableModel = new StringsTableModel();
+    private final JTable stringsTable = new JTable(stringsTableModel);
+
+    private final JTextArea editor = new JTextArea(12, 60);
+
+    private DFA currentDfa;
+    private DFASimulation currentSim;
+
+    // Controls
+    private final JButton btnPrev = new JButton("Anterior");
+    private final JButton btnNext = new JButton("Siguiente");
+    private final JButton btnReset = new JButton("Reiniciar");
+    private final JButton btnAuto = new JButton("Auto ▶");
+    private javax.swing.Timer autoTimer;
+
+    private final JTextField inputField = new JTextField(20);
+    private final JButton btnAddString = new JButton("Añadir cadena");
+    private final JButton btnRunAll = new JButton("Procesar todas");
+
+    public MainFrame() {
+        super("Simulador AFD — Automatas Eddy");
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setMinimumSize(new Dimension(960, 640));
+        setLocationRelativeTo(null);
+        setJMenuBar(createMenuBar());
+
+        // Home panel (modern look)
+        homePanel.setBackground(new Color(247, 250, 252));
+        var title = new JLabel("Simulador de Autómatas Finitos Deterministas");
+        title.setFont(title.getFont().deriveFont(Font.BOLD, 22f));
+        title.setForeground(new Color(33, 37, 41));
+        var subtitle = new JLabel("Cargar, editar y simular paso a paso");
+        subtitle.setForeground(new Color(80, 90, 100));
+
+        JPanel buttons = new JPanel(new GridLayout(2,3,12,12));
+        buttons.setOpaque(false);
+        buttons.add(createHomeButton("Abrir archivo", e -> onOpen()));
+        buttons.add(createHomeButton("Nuevo AFD", e -> onNew()));
+        buttons.add(createHomeButton("Ejemplo 1", e -> loadExample(1)));
+        buttons.add(createHomeButton("Ejemplo 2", e -> loadExample(2)));
+        buttons.add(createHomeButton("Ejemplo 3", e -> loadExample(3)));
+        buttons.add(createHomeButton("Ayuda", e -> showHelp()));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0; gbc.gridy = 0; gbc.insets = new Insets(8,8,8,8);
+        homePanel.add(title, gbc);
+        gbc.gridy = 1; homePanel.add(subtitle, gbc);
+        gbc.gridy = 2; gbc.insets = new Insets(24,8,8,8);
+        homePanel.add(buttons, gbc);
+
+        // Simulator panel
+        simulatorPanel.add(createTopToolbar(), BorderLayout.NORTH);
+        simulatorPanel.add(createCenterTabs(), BorderLayout.CENTER);
+        simulatorPanel.add(createBottomControls(), BorderLayout.SOUTH);
+
+        root.add(homePanel, "home");
+        root.add(simulatorPanel, "sim");
+        add(root);
+
+        updateControlsEnabled();
+    }
+
+    private JMenuBar createMenuBar() {
+        JMenuBar bar = new JMenuBar();
+        // Archivo
+        JMenu mFile = new JMenu("Archivo");
+        mFile.add(new JMenuItem(new AbstractAction("Abrir…") {
+            @Override public void actionPerformed(ActionEvent e) { onOpen(); }
+        }));
+        mFile.add(new JMenuItem(new AbstractAction("Nuevo") {
+            @Override public void actionPerformed(ActionEvent e) { onNew(); }
+        }));
+        mFile.add(new JMenuItem(new AbstractAction("Guardar…") {
+            @Override public void actionPerformed(ActionEvent e) { onSave(); }
+        }));
+        mFile.addSeparator();
+        mFile.add(new JMenuItem(new AbstractAction("Salir") {
+            @Override public void actionPerformed(ActionEvent e) { dispose(); }
+        }));
+        // Ejemplos
+        JMenu mSamples = new JMenu("Ejemplos");
+        mSamples.add(new JMenuItem(new AbstractAction("Ejemplo 1") { @Override public void actionPerformed(ActionEvent e) { loadExample(1); } }));
+        mSamples.add(new JMenuItem(new AbstractAction("Ejemplo 2") { @Override public void actionPerformed(ActionEvent e) { loadExample(2); } }));
+        mSamples.add(new JMenuItem(new AbstractAction("Ejemplo 3") { @Override public void actionPerformed(ActionEvent e) { loadExample(3); } }));
+        // Acerca de
+        JMenu mAbout = new JMenu("Acerca de…");
+        mAbout.add(new JMenuItem(new AbstractAction("Acerca de") { @Override public void actionPerformed(ActionEvent e) { showAbout(); } }));
+        mAbout.add(new JMenuItem(new AbstractAction("Ayuda") { @Override public void actionPerformed(ActionEvent e) { showHelp(); } }));
+
+        bar.add(mFile);
+        bar.add(mSamples);
+        bar.add(mAbout);
+        return bar;
+    }
+
+    private JButton createHomeButton(String text, ActionListener listener) {
+        JButton b = new JButton(text);
+        b.addActionListener(listener);
+        stylePrimaryButton(b);
+        return b;
+    }
+
+    private void stylePrimaryButton(JButton b) {
+        b.setFocusPainted(false);
+        b.setBackground(new Color(69, 123, 157));
+        b.setForeground(Color.WHITE);
+        b.setBorder(BorderFactory.createEmptyBorder(12,18,12,18));
+    }
+
+    private JToolBar createTopToolbar() {
+        JToolBar tb = new JToolBar();
+        tb.setFloatable(false);
+        tb.setBorder(new EmptyBorder(8,8,8,8));
+
+        tb.add(new JLabel("Cadena:"));
+        tb.add(inputField);
+        JButton btnSet = new JButton("Cargar cadena");
+        btnSet.addActionListener(e -> startSimulationFromInput());
+        tb.add(btnSet);
+        tb.addSeparator();
+        tb.add(btnAddString);
+        btnAddString.addActionListener(e -> {
+            String s = inputField.getText();
+            if (s != null) {
+                stringsTableModel.addString(s);
+            }
+        });
+        tb.add(btnRunAll);
+        btnRunAll.addActionListener(e -> processAllStrings());
+
+        return tb;
+    }
+
+    private JComponent createCenterTabs() {
+        // Construir una vista dividida en 4 cuadrantes usando JSplitPane anidados
+        // Arriba-izquierda: Tabla transiciones
+        // Abajo-izquierda: Cadenas
+        // Arriba-derecha: Diagrama AFD
+        // Abajo-derecha: Editor
+
+        // Paneles con scroll donde aplica
+        transitionTable.setFillsViewportHeight(true);
+        transitionTable.setRowSelectionAllowed(true);
+        transitionTable.setColumnSelectionAllowed(true);
+        JScrollPane transitionsScroll = new JScrollPane(transitionTable);
+
+        stringsTable.setFillsViewportHeight(true);
+        stringsTable.setRowSorter(new TableRowSorter<>(stringsTable.getModel()));
+        JScrollPane stringsScroll = new JScrollPane(stringsTable);
+
+        editor.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
+        JScrollPane editorScroll = new JScrollPane(editor);
+
+        JPanel diagWrap = new JPanel(new BorderLayout());
+        diagWrap.add(diagramPanel, BorderLayout.CENTER);
+
+        // Split vertical izquierdo (transiciones arriba, cadenas abajo)
+        JSplitPane leftSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, transitionsScroll, stringsScroll);
+        leftSplit.setOneTouchExpandable(true);
+        leftSplit.setResizeWeight(0.5);
+
+        // Split vertical derecho (diagrama arriba, editor abajo)
+        JSplitPane rightSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, diagWrap, editorScroll);
+        rightSplit.setOneTouchExpandable(true);
+        rightSplit.setResizeWeight(0.6);
+
+        // Split horizontal principal (izquierda/derecha)
+        JSplitPane mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftSplit, rightSplit);
+        mainSplit.setOneTouchExpandable(true);
+        mainSplit.setResizeWeight(0.5);
+
+        // Ajustes visuales
+        mainSplit.setBorder(null);
+        leftSplit.setBorder(null);
+        rightSplit.setBorder(null);
+
+        return mainSplit;
+    }
+
+    private JPanel createBottomControls() {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        panel.setBorder(new EmptyBorder(8,8,8,8));
+        btnPrev.addActionListener(e -> stepBack());
+        btnNext.addActionListener(e -> stepForward());
+        btnReset.addActionListener(e -> resetSimulation());
+        btnAuto.addActionListener(e -> toggleAuto());
+        panel.add(btnPrev);
+        panel.add(btnNext);
+        panel.add(btnReset);
+        panel.add(btnAuto);
+        return panel;
+    }
+
+    // Actions
+    private void onOpen() {
+        JFileChooser ch = new JFileChooser();
+        if (ch.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+            File f = ch.getSelectedFile();
+            try {
+                DFAParser.ParseResult res = DFAParser.parseFileAll(f);
+                setCurrentDfa(res.getDfa());
+                editor.setText(new String(java.nio.file.Files.readAllBytes(f.toPath())));
+                stringsTableModel.clear();
+                for (String s : res.getStrings()) {
+                    stringsTableModel.addString(s);
+                }
+                goToSim();
+            } catch (Exception ex) {
+                showError("No se pudo abrir el archivo: " + ex.getMessage());
+            }
+        }
+    }
+
+    private void onNew() {
+        String template = "# Definición de AFD\n" +
+                "symbols: a,b\n" +
+                "states: q0,q1\n" +
+                "start: q0\n" +
+                "finals: q1\n" +
+                "transitions:\n" +
+                "q0,a->q1\n" +
+                "q0,b->q0\n" +
+                "q1,a->q1\n" +
+                "q1,b->q0\n" +
+                "strings:\n" +
+                "abba\n";
+        editor.setText(template);
+        try {
+            DFAParser.ParseResult res = DFAParser.parseAll(template);
+            setCurrentDfa(res.getDfa());
+            stringsTableModel.clear();
+            for (String s : res.getStrings()) {
+                stringsTableModel.addString(s);
+            }
+        } catch (Exception ex) {
+            // ignore template errors
+        }
+        goToSim();
+    }
+
+    private void onSave() {
+        String text = editor.getText();
+        JFileChooser ch = new JFileChooser();
+        if (ch.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+            File f = ch.getSelectedFile();
+            try {
+                DFAParser.saveTextToFile(text, f);
+                JOptionPane.showMessageDialog(this, "Archivo guardado.");
+            } catch (IOException e) {
+                showError("No se pudo guardar: " + e.getMessage());
+            }
+        }
+    }
+
+    private void showAbout() {
+        JOptionPane.showMessageDialog(this,
+                "Simulador AFD\nUniversidad: [Tu Universidad]\nCurso: Teoría de Autómatas\nFecha: " + java.time.LocalDate.now() +
+                        "\nIntegrantes: [Nombres]",
+                "Acerca de", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void showHelp() {
+        JOptionPane.showMessageDialog(this,
+                "Cómo usar:\n1) Abra o cree un AFD desde el menú Archivo.\n" +
+                        "2) Edite la definición en la pestaña Editor si lo desea.\n" +
+                        "3) Ingrese una cadena y presione Cargar cadena.\n" +
+                        "4) Use los controles Anterior/Siguiente/Reiniciar/Auto para simular paso a paso.\n" +
+                        "5) En la pestaña Cadenas agregue cadenas y presione 'Procesar todas'.",
+                "Ayuda", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void goToSim() { cardLayout.show(root, "sim"); }
+    private void goHome() { cardLayout.show(root, "home"); }
+
+    private void setCurrentDfa(DFA dfa) {
+        this.currentDfa = dfa;
+        transitionTableModel.setDfa(dfa);
+        diagramPanel.setDfa(dfa);
+        resetSimulation();
+        updateControlsEnabled();
+    }
+
+    private void resetSimulation() {
+        if (currentDfa == null || currentSim == null) return;
+        currentSim.reset();
+        updateDiagramHighlight();
+        updateControlsEnabled();
+    }
+
+    private void startSimulationFromInput() {
+        if (currentDfa == null) {
+            showError("Primero cargue un AFD (Archivo > Abrir o Nuevo).");
+            return;
+        }
+        String in = inputField.getText();
+        if (in == null) in = "";
+        currentSim = new DFASimulation(currentDfa, in);
+        updateDiagramHighlight();
+        updateControlsEnabled();
+    }
+
+    private void stepForward() {
+        if (currentSim == null) { startSimulationFromInput(); }
+        if (currentSim == null) return;
+        if (currentSim.stepForward()) {
+            updateDiagramHighlight();
+            updateControlsEnabled();
+        } else {
+            if (autoTimer != null && autoTimer.isRunning()) autoTimer.stop();
+        }
+    }
+
+    private void stepBack() {
+        if (currentSim == null) return;
+        if (currentSim.stepBack()) {
+            updateDiagramHighlight();
+            updateControlsEnabled();
+        }
+    }
+
+    private void toggleAuto() {
+        if (currentSim == null) { startSimulationFromInput(); }
+        if (currentSim == null) return;
+        if (autoTimer == null) {
+            autoTimer = new javax.swing.Timer(700, e -> stepForward());
+        }
+        if (autoTimer.isRunning()) {
+            autoTimer.stop();
+            btnAuto.setText("Auto ▶");
+        } else {
+            autoTimer.start();
+            btnAuto.setText("Pausar ⏸");
+        }
+    }
+
+    private void processAllStrings() {
+        if (currentDfa == null) { showError("Cargue un AFD primero."); return; }
+        for (int i = 0; i < stringsTableModel.size(); i++) {
+            String s = stringsTableModel.get(i).input;
+            DFASimulation sim = new DFASimulation(currentDfa, s);
+            while (sim.canStepForward()) sim.stepForward();
+            stringsTableModel.setResult(i, sim.isAccepted());
+        }
+    }
+
+    private void updateDiagramHighlight() {
+        if (currentDfa == null || currentSim == null) return;
+        java.util.List<String> path = currentSim.getPathStates();
+        String current = path.get(path.size() - 1);
+        String from = null, sym = null, to = null;
+        int idx = currentSim.getIndex();
+        if (idx > 0) {
+            from = path.get(idx - 1);
+            sym = String.valueOf(currentSim.getInput().charAt(idx - 1));
+            to = current;
+        }
+        diagramPanel.setHighlight(current, from, sym, to);
+
+        // Actualizar marcas "->" en la columna Estado
+        transitionTableModel.setCurrentState(current);
+
+        // Resaltar en la tabla de transiciones
+        try {
+            int row = -1;
+            for (int r = 0; r < transitionTable.getRowCount(); r++) {
+                Object val = transitionTable.getValueAt(r, 0);
+                if (Objects.equals(current, val)) { row = r; break; }
+            }
+            int col = 0; // columna 0 = "Estado"
+            if (sym != null) {
+                for (int c = 1; c < transitionTable.getColumnCount(); c++) {
+                    if (Objects.equals(sym, transitionTable.getColumnName(c))) { col = c; break; }
+                }
+            }
+            if (row >= 0) {
+                transitionTable.changeSelection(row, col, false, false);
+            } else {
+                transitionTable.clearSelection();
+            }
+        } catch (Exception ignore) {}
+    }
+
+    private void updateControlsEnabled() {
+        boolean hasDfa = currentDfa != null;
+        boolean hasSim = currentSim != null;
+        btnPrev.setEnabled(hasSim && currentSim.canStepBack());
+        btnNext.setEnabled(hasSim && currentSim.canStepForward());
+        btnReset.setEnabled(hasSim);
+        btnAuto.setEnabled(hasSim);
+    }
+
+    private void loadExample(int n) {
+        String text = switch (n) {
+            case 1 -> EXAMPLE_1;
+            case 2 -> EXAMPLE_2;
+            default -> EXAMPLE_3;
+        };
+        editor.setText(text);
+        try {
+            DFAParser.ParseResult res = DFAParser.parseAll(text);
+            setCurrentDfa(res.getDfa());
+            stringsTableModel.clear();
+            for (String s : res.getStrings()) {
+                stringsTableModel.addString(s);
+            }
+            goToSim();
+        } catch (Exception ex) {
+            showError("Error en ejemplo: " + ex.getMessage());
+        }
+    }
+
+    private void showError(String msg) {
+        JOptionPane.showMessageDialog(this, msg, "Error", JOptionPane.ERROR_MESSAGE);
+    }
+
+    // Example DFAs
+    private static final String EXAMPLE_1 = "" +
+            "# AFD que acepta cadenas con número par de a's\n" +
+            "symbols: a,b\n" +
+            "states: q0,q1\n" +
+            "start: q0\n" +
+            "finals: q0\n" +
+            "transitions:\n" +
+            "q0,a->q1\n" +
+            "q0,b->q0\n" +
+            "q1,a->q0\n" +
+            "q1,b->q1\n" +
+            "strings:\n" +
+            "a\n" +
+            "aa\n" +
+            "aba\n";
+
+    private static final String EXAMPLE_2 = "" +
+            "# AFD que acepta cadenas que terminan con 'ab'\n" +
+            "symbols: a,b\n" +
+            "states: q0,q1,q2\n" +
+            "start: q0\n" +
+            "finals: q2\n" +
+            "transitions:\n" +
+            "q0,a->q1\n" +
+            "q0,b->q0\n" +
+            "q1,a->q1\n" +
+            "q1,b->q2\n" +
+            "q2,a->q1\n" +
+            "q2,b->q0\n" +
+            "strings:\n" +
+            "ab\n" +
+            "aab\n" +
+            "b\n";
+
+    private static final String EXAMPLE_3 = "" +
+            "# AFD sobre {0,1} que acepta números binarios múltiplos de 3\n" +
+            "symbols: 0,1\n" +
+            "states: q0,q1,q2\n" +
+            "start: q0\n" +
+            "finals: q0\n" +
+            "transitions:\n" +
+            "q0,0->q0\n" +
+            "q0,1->q1\n" +
+            "q1,0->q2\n" +
+            "q1,1->q0\n" +
+            "q2,0->q1\n" +
+            "q2,1->q2\n" +
+            "strings:\n" +
+            "0\n" +
+            "11\n" +
+            "101\n";
+}
