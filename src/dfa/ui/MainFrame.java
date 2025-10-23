@@ -15,6 +15,9 @@ import java.util.*;
 import java.awt.event.ActionListener;
 
 public class MainFrame extends JFrame {
+    // Menu
+    private final JMenuBar menuBar = new JMenuBar();
+    private final JMenu mFile = new JMenu("Archivo");
     // Cards
     private final CardLayout cardLayout = new CardLayout();
     private final JPanel root = new JPanel(cardLayout);
@@ -59,14 +62,30 @@ public class MainFrame extends JFrame {
         var subtitle = new JLabel("Cargar, editar y simular paso a paso");
         subtitle.setForeground(new Color(80, 90, 100));
 
-        JPanel buttons = new JPanel(new GridLayout(2,3,12,12));
+        JPanel buttons = new JPanel(new GridBagLayout());
         buttons.setOpaque(false);
-        buttons.add(createHomeButton("Abrir archivo", e -> onOpen()));
-        buttons.add(createHomeButton("Nuevo AFD", e -> onNew()));
-        buttons.add(createHomeButton("Ejemplo 1", e -> loadExample(1)));
-        buttons.add(createHomeButton("Ejemplo 2", e -> loadExample(2)));
-        buttons.add(createHomeButton("Ejemplo 3", e -> loadExample(3)));
-        buttons.add(createHomeButton("Ayuda", e -> showHelp()));
+        GridBagConstraints bgbc = new GridBagConstraints();
+        bgbc.insets = new Insets(12,12,12,12);
+
+        // Fila 1: Abrir archivo | Acerca de | Ayuda
+        bgbc.gridy = 0; bgbc.gridx = 0;
+        buttons.add(createHomeButton("Abrir archivo", e -> onOpen()), bgbc);
+        bgbc.gridx = 1;
+        buttons.add(createHomeButton("Acerca de", e -> showAbout()), bgbc);
+        bgbc.gridx = 2;
+        buttons.add(createHomeButton("Ayuda", e -> showHelp()), bgbc);
+
+        // Fila 2: Ejemplo 1 | Ejemplo 2 | Ejemplo 3
+        bgbc.gridy = 1; bgbc.gridx = 0;
+        buttons.add(createHomeButton("Ejemplo 1", e -> loadExample(1)), bgbc);
+        bgbc.gridx = 1;
+        buttons.add(createHomeButton("Ejemplo 2", e -> loadExample(2)), bgbc);
+        bgbc.gridx = 2;
+        buttons.add(createHomeButton("Ejemplo 3", e -> loadExample(3)), bgbc);
+
+        // Fila 3 (centrado): Salir
+        bgbc.gridy = 2; bgbc.gridx = 1;
+        buttons.add(createHomeButton("Salir", e -> dispose()), bgbc);
 
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridx = 0; gbc.gridy = 0; gbc.insets = new Insets(8,8,8,8);
@@ -88,9 +107,11 @@ public class MainFrame extends JFrame {
     }
 
     private JMenuBar createMenuBar() {
-        JMenuBar bar = new JMenuBar();
-        // Archivo
-        JMenu mFile = new JMenu("Archivo");
+        // Reuse a single menu bar instance and a single File menu
+        menuBar.removeAll();
+
+        // Build Archivo menu content
+        mFile.removeAll();
         mFile.add(new JMenuItem(new AbstractAction("Abrir…") {
             @Override public void actionPerformed(ActionEvent e) { onOpen(); }
         }));
@@ -104,20 +125,12 @@ public class MainFrame extends JFrame {
         mFile.add(new JMenuItem(new AbstractAction("Salir") {
             @Override public void actionPerformed(ActionEvent e) { dispose(); }
         }));
-        // Ejemplos
-        JMenu mSamples = new JMenu("Ejemplos");
-        mSamples.add(new JMenuItem(new AbstractAction("Ejemplo 1") { @Override public void actionPerformed(ActionEvent e) { loadExample(1); } }));
-        mSamples.add(new JMenuItem(new AbstractAction("Ejemplo 2") { @Override public void actionPerformed(ActionEvent e) { loadExample(2); } }));
-        mSamples.add(new JMenuItem(new AbstractAction("Ejemplo 3") { @Override public void actionPerformed(ActionEvent e) { loadExample(3); } }));
-        // Acerca de
-        JMenu mAbout = new JMenu("Acerca de…");
-        mAbout.add(new JMenuItem(new AbstractAction("Acerca de") { @Override public void actionPerformed(ActionEvent e) { showAbout(); } }));
-        mAbout.add(new JMenuItem(new AbstractAction("Ayuda") { @Override public void actionPerformed(ActionEvent e) { showHelp(); } }));
 
-        bar.add(mFile);
-        bar.add(mSamples);
-        bar.add(mAbout);
-        return bar;
+        // Other menus can be constructed here if needed (e.g., Ejemplos, Acerca de),
+        // but we control visibility of mFile depending on the active screen.
+
+        // Do not add mFile here; it will be added when entering the simulator screen.
+        return menuBar;
     }
 
     private JButton createHomeButton(String text, ActionListener listener) {
@@ -145,7 +158,7 @@ public class MainFrame extends JFrame {
         btnSet.addActionListener(e -> startSimulationFromInput());
         tb.add(btnSet);
         tb.addSeparator();
-        tb.add(btnAddString);
+//        tb.add(btnAddString);
         btnAddString.addActionListener(e -> {
             String s = inputField.getText();
             if (s != null) {
@@ -169,6 +182,11 @@ public class MainFrame extends JFrame {
         transitionTable.setFillsViewportHeight(true);
         transitionTable.setRowSelectionAllowed(true);
         transitionTable.setColumnSelectionAllowed(true);
+        // Estilo para parecerse a la imagen
+        transitionTable.setSelectionBackground(new Color(255, 255, 153));
+        transitionTable.setSelectionForeground(Color.BLACK);
+        transitionTable.setDefaultRenderer(Object.class, new TransitionCellRenderer());
+        transitionTable.setRowHeight(22);
         JScrollPane transitionsScroll = new JScrollPane(transitionTable);
 
         stringsTable.setFillsViewportHeight(true);
@@ -214,7 +232,7 @@ public class MainFrame extends JFrame {
         panel.add(btnPrev);
         panel.add(btnNext);
         panel.add(btnReset);
-        panel.add(btnAuto);
+//        panel.add(btnAuto);
         return panel;
     }
 
@@ -296,8 +314,35 @@ public class MainFrame extends JFrame {
                 "Ayuda", JOptionPane.INFORMATION_MESSAGE);
     }
 
-    private void goToSim() { cardLayout.show(root, "sim"); }
-    private void goHome() { cardLayout.show(root, "home"); }
+    private void goToSim() { 
+        cardLayout.show(root, "sim"); 
+        setFileMenuVisible(true);
+    }
+    private void goHome() { 
+        cardLayout.show(root, "home"); 
+        setFileMenuVisible(false);
+    }
+
+    private void setFileMenuVisible(boolean visible) {
+        if (visible) {
+            boolean present = false;
+            for (int i = 0; i < menuBar.getMenuCount(); i++) {
+                if (menuBar.getMenu(i) == mFile) { present = true; break; }
+            }
+            if (!present) {
+                menuBar.add(mFile, 0);
+                menuBar.revalidate();
+                menuBar.repaint();
+            }
+            if (getJMenuBar() == null) {
+                setJMenuBar(menuBar);
+            }
+        } else {
+            menuBar.remove(mFile);
+            menuBar.revalidate();
+            menuBar.repaint();
+        }
+    }
 
     private void setCurrentDfa(DFA dfa) {
         this.currentDfa = dfa;
@@ -391,7 +436,8 @@ public class MainFrame extends JFrame {
             int row = -1;
             for (int r = 0; r < transitionTable.getRowCount(); r++) {
                 Object val = transitionTable.getValueAt(r, 0);
-                if (Objects.equals(current, val)) { row = r; break; }
+                String raw = val == null ? null : val.toString().replace("->", "").replace("*", "");
+                if (Objects.equals(current, raw)) { row = r; break; }
             }
             int col = 0; // columna 0 = "Estado"
             if (sym != null) {

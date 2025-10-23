@@ -74,6 +74,12 @@ public class TransitionTableModel extends AbstractTableModel {
         String sym = symbols.get(columnIndex - 1);
         Map<String, String> map = dfa.getTransitions().get(state);
         String to = map != null ? map.get(sym) : null;
-        return to == null ? "—" : to;
+        if (to == null) return "—";
+        // Decorar el destino igual que en la columna Estado, para que se vea como en la imagen
+        StringBuilder sb = new StringBuilder();
+        if (Objects.equals(dfa.getStartState(), to)) sb.append("->");
+        if (dfa.getAcceptStates().contains(to)) sb.append("*");
+        sb.append(to);
+        return sb.toString();
     }
 }

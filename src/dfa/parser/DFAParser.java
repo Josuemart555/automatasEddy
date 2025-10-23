@@ -90,15 +90,19 @@ public class DFAParser {
                             map.put(syms.get(i), tos.get(i).trim());
                         }
                     } else {
-                        // Fila de destinos sin estado origen explícito
+                        // Fila de destinos sin estado origen explícito (formato de tabla)
                         List<String> tos = splitCSV(line);
                         List<String> syms = new ArrayList<>(symbols);
                         List<String> sts = new ArrayList<>(states);
+
                         if (tos.size() != syms.size()) {
-                            throw new IllegalArgumentException("Fila de transición no coincide con número de símbolos: " + line);
+                            throw new IllegalArgumentException("Fila de transición no coincide con número de símbolos (" + syms.size() + "): " + line + 
+                                    ". Use el formato 'estado_origen,símbolo->estado_destino' o proporcione todos los destinos separados por comas");
                         }
                         if (transRowIndex >= sts.size()) {
-                            throw new IllegalArgumentException("Hay más filas de transiciones que estados definidos");
+                            // En formato de tabla, solo procesamos tantas filas como estados hay
+                            // Las filas adicionales se ignoran silenciosamente
+                            continue;
                         }
                         String from = sts.get(transRowIndex++);
                         Map<String, String> map = transitions.computeIfAbsent(from, k -> new LinkedHashMap<>());
@@ -240,15 +244,19 @@ public class DFAParser {
                             map.put(syms.get(i), tos.get(i).trim());
                         }
                     } else {
-                        // to0,to1,... (sin 'from', deducir por el orden de estados)
+                        // to0,to1,... (sin 'from', deducir por el orden de estados - formato de tabla)
                         List<String> tos = splitCSV(line);
                         List<String> syms = new ArrayList<>(symbols);
                         List<String> sts = new ArrayList<>(states);
+
                         if (tos.size() != syms.size()) {
-                            throw new IllegalArgumentException("Fila de transición no coincide con número de símbolos: " + line);
+                            throw new IllegalArgumentException("Fila de transición no coincide con número de símbolos (" + syms.size() + "): " + line + 
+                                    ". Use el formato 'estado_origen,símbolo->estado_destino' o proporcione todos los destinos separados por comas");
                         }
                         if (transRowIndex >= sts.size()) {
-                            throw new IllegalArgumentException("Hay más filas de transiciones que estados definidos");
+                            // En formato de tabla, solo procesamos tantas filas como estados hay
+                            // Las filas adicionales se ignoran silenciosamente
+                            continue;
                         }
                         String from = sts.get(transRowIndex++);
                         Map<String, String> map = transitions.computeIfAbsent(from, k -> new LinkedHashMap<>());
@@ -257,8 +265,10 @@ public class DFAParser {
                         }
                     }
                 } else if (inStrings) {
-                    // Permitir cadenas separadas por comas dentro de la misma línea (ej. 1,0,0,1)
-                    String s = line.replace(",", "").replace(" ", "");
+                    // Permitir cadenas separadas por comas dentro de la misma línea (ej. 1,0,0,1 o x,x,y)
+                    // Interpretar las comas como separadores de símbolos
+                    List<String> symbolsList = splitCSV(line);
+                    String s = String.join("", symbolsList);
                     strings.add(s);
                 }
             }
