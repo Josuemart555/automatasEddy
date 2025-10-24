@@ -1,8 +1,9 @@
-package dfa.ui;
+package com.automatas.dfa.ui;
 
-import dfa.model.DFA;
-import dfa.model.DFASimulation;
-import dfa.parser.DFAParser;
+
+import com.automatas.dfa.model.DFA;
+import com.automatas.dfa.model.DFASimulation;
+import com.automatas.dfa.parser.DFAParser;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;

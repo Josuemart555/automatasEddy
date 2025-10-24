@@ -1,5 +1,5 @@
-//TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
-// click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
+package com.automatas.dfa;
+
 import javax.swing.*;
 
 public class Main {
@@ -14,7 +14,7 @@ public class Main {
         } catch (Exception ignored) {}
 
         SwingUtilities.invokeLater(() -> {
-            dfa.ui.MainFrame frame = new dfa.ui.MainFrame();
+            com.automatas.dfa.ui.MainFrame frame = new com.automatas.dfa.ui.MainFrame();
             frame.setVisible(true);
         });
     }

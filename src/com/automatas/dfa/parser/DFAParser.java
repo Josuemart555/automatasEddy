@@ -1,6 +1,6 @@
-package dfa.parser;
+package com.automatas.dfa.parser;
 
-import dfa.model.DFA;
+import com.automatas.dfa.model.DFA;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;

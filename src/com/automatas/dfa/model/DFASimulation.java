@@ -1,4 +1,4 @@
-package dfa.model;
+package com.automatas.dfa.model;
 
 import java.util.ArrayList;
 import java.util.List;

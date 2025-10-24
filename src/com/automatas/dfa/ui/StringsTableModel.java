@@ -1,4 +1,4 @@
-package dfa.ui;
+package com.automatas.dfa.ui;
 
 import javax.swing.table.AbstractTableModel;
 import java.util.ArrayList;

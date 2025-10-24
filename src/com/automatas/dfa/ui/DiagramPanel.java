@@ -1,6 +1,6 @@
-package dfa.ui;
+package com.automatas.dfa.ui;
 
-import dfa.model.DFA;
+import com.automatas.dfa.model.DFA;
 
 import javax.swing.*;
 import java.awt.*;

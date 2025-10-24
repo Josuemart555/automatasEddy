@@ -1,4 +1,4 @@
-package dfa.ui;
+package com.automatas.dfa.ui;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
