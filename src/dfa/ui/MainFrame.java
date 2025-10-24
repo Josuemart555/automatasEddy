@@ -309,21 +309,57 @@ public class MainFrame extends JFrame {
     }
 
     private void showHelp() {
-        JOptionPane.showMessageDialog(this,
-                "Cómo usar:\n1) Abra o cree un AFD desde el menú Archivo.\n" +
-                        "2) Edite la definición en la pestaña Editor si lo desea.\n" +
-                        "3) Ingrese una cadena y presione Cargar cadena.\n" +
-                        "4) Use los controles Anterior/Siguiente/Reiniciar/Auto para simular paso a paso.\n" +
-                        "5) En la pestaña Cadenas agregue cadenas y presione 'Procesar todas'.",
-                "Ayuda", JOptionPane.INFORMATION_MESSAGE);
+        try {
+            // Intentar abrir el PDF desde los recursos
+            var resource = getClass().getClassLoader().getResource("guia_de_usuario.pdf");
+
+            if (resource != null) {
+                // Si el PDF está en recursos, copiarlo temporalmente y abrirlo
+                File tempFile = File.createTempFile("guia_usuario", ".pdf");
+                tempFile.deleteOnExit();
+
+                try (var in = resource.openStream();
+                     var out = new java.io.FileOutputStream(tempFile)) {
+                    byte[] buffer = new byte[8192];
+                    int bytesRead;
+                    while ((bytesRead = in.read(buffer)) != -1) {
+                        out.write(buffer, 0, bytesRead);
+                    }
+                }
+
+                // Abrir el PDF con la aplicación predeterminada
+                if (Desktop.isDesktopSupported()) {
+                    Desktop desktop = Desktop.getDesktop();
+                    if (desktop.isSupported(Desktop.Action.OPEN)) {
+                        desktop.open(tempFile);
+                        return;
+                    }
+                }
+
+                // Si Desktop no está disponible, intentar con el navegador
+                openInBrowser(tempFile.toURI().toString());
+            } else {
+                // Si no se encuentra el PDF, mostrar mensaje
+                JOptionPane.showMessageDialog(this,
+                        "No se encontró el archivo de ayuda (guia_usuario.pdf).\n\n" +
+                                "Cómo usar:\n1) Abra o cree un AFD desde el menú Archivo.\n" +
+                                "2) Edite la definición en la pestaña Editor si lo desea.\n" +
+                                "3) Ingrese una cadena y presione Cargar cadena.\n" +
+                                "4) Use los controles Anterior/Siguiente/Reiniciar/Auto para simular paso a paso.\n" +
+                                "5) En la pestaña Cadenas agregue cadenas y presione 'Procesar todas'.",
+                        "Ayuda", JOptionPane.INFORMATION_MESSAGE);
+            }
+        } catch (Exception ex) {
+            showError("No se pudo abrir la guía de usuario: " + ex.getMessage());
+        }
     }
 
-    private void goToSim() { 
-        cardLayout.show(root, "sim"); 
+    private void goToSim() {
+        cardLayout.show(root, "sim");
         setFileMenuVisible(true);
     }
-    private void goHome() { 
-        cardLayout.show(root, "home"); 
+    private void goHome() {
+        cardLayout.show(root, "home");
         setFileMenuVisible(false);
     }
 
@@ -488,6 +524,26 @@ public class MainFrame extends JFrame {
 
     private void showError(String msg) {
         JOptionPane.showMessageDialog(this, msg, "Error", JOptionPane.ERROR_MESSAGE);
+    }
+
+    private void openInBrowser(String url) {
+        try {
+            if (Desktop.isDesktopSupported()) {
+                Desktop.getDesktop().browse(new java.net.URI(url));
+            } else {
+                // Alternativa para sistemas sin Desktop API
+                String os = System.getProperty("os.name").toLowerCase();
+                if (os.contains("win")) {
+                    Runtime.getRuntime().exec("rundll32 url.dll,FileProtocolHandler " + url);
+                } else if (os.contains("mac")) {
+                    Runtime.getRuntime().exec("open " + url);
+                } else if (os.contains("nix") || os.contains("nux")) {
+                    Runtime.getRuntime().exec("xdg-open " + url);
+                }
+            }
+        } catch (Exception e) {
+            showError("No se pudo abrir el navegador: " + e.getMessage());
+        }
     }
 
     // Example DFAs
