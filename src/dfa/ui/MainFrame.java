@@ -122,6 +122,10 @@ public class MainFrame extends JFrame {
             @Override public void actionPerformed(ActionEvent e) { onSave(); }
         }));
         mFile.addSeparator();
+        mFile.add(new JMenuItem(new AbstractAction("Regresar a inicio") {
+            @Override public void actionPerformed(ActionEvent e) { goHome(); }
+        }));
+        mFile.addSeparator();
         mFile.add(new JMenuItem(new AbstractAction("Salir") {
             @Override public void actionPerformed(ActionEvent e) { dispose(); }
         }));
