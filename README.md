@@ -39,7 +39,7 @@ aab
 
 ## Ejecución
 - Requisitos: JDK 17+ (o el que utilice su IDE)
-- Abrir el proyecto en IntelliJ IDEA y ejecutar la clase `java.dfa.Main`.
+- Abrir el proyecto en IntelliJ IDEA y ejecutar la clase `com.automatas.dfa.Main`.
 
 ## Generar instalador (Windows)
 Se incluye una plantilla de script de Inno Setup `installer.iss`.

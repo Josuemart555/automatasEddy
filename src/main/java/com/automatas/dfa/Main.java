@@ -1,6 +1,7 @@
 package com.automatas.dfa;
 
 import javax.swing.*;
+import com.automatas.dfa.ui.MainFrame;
 
 public class Main {
     public static void main(String[] args) {
@@ -14,7 +15,7 @@ public class Main {
         } catch (Exception ignored) {}
 
         SwingUtilities.invokeLater(() -> {
-            com.automatas.dfa.ui.MainFrame frame = new com.automatas.dfa.ui.MainFrame();
+            MainFrame frame = new MainFrame();
             frame.setVisible(true);
         });
     }
