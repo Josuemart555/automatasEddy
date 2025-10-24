@@ -15,7 +15,38 @@ out/
 bin/
 !**/src/main/**/bin/
 !**/src/test/**/bin/
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
 
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build outputs
+bin/
+build/
+dist/
 ### NetBeans ###
 /nbproject/private/
 /nbbuild/
