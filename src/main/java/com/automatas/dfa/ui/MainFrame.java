@@ -304,8 +304,8 @@ public class MainFrame extends JFrame {
 
     private void showAbout() {
         JOptionPane.showMessageDialog(this,
-                "Simulador AFD\nUniversidad: [Tu Universidad]\nCurso: Teoría de Autómatas\nFecha: " + java.time.LocalDate.now() +
-                        "\nIntegrantes: [Nombres]",
+                "Simulador AFD\nUniversidad: Mariano Galvez de Guatemala\nCurso: Autómatas y Lenguajes Formales\nFecha: " + java.time.LocalDate.now() +
+                        "\nEddy Adolfo Castro Véliz\n1890-23-16857\necastrov5@miumg.edu.gt",
                 "Acerca de", JOptionPane.INFORMATION_MESSAGE);
     }
 
